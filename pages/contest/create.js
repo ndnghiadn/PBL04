@@ -25,24 +25,7 @@ const CreateContestPage = () => {
   };
 
   const handleSelectChange = (value) => {
-    switch (value) {
-      case "male":
-        form.setFieldsValue({
-          note: "Hi, man!",
-        });
-        return;
-
-      case "female":
-        form.setFieldsValue({
-          note: "Hi, lady!",
-        });
-        return;
-
-      case "other":
-        form.setFieldsValue({
-          note: "Hi there!",
-        });
-    }
+    console.log("value select", value);
   };
 
   const handleSubmit = (values) => {
@@ -61,7 +44,8 @@ const CreateContestPage = () => {
         }}
       >
         <Breadcrumb.Item>Home</Breadcrumb.Item>
-        <Breadcrumb.Item>Create contest</Breadcrumb.Item>
+        <Breadcrumb.Item>Contest</Breadcrumb.Item>
+        <Breadcrumb.Item>Create</Breadcrumb.Item>
       </Breadcrumb>
       <Content
         className="site-layout-background"
@@ -79,10 +63,15 @@ const CreateContestPage = () => {
             alignItems: "center",
           }}
         >
-          <Form form={form} layout="vertical" onFinish={handleSubmit}>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            style={{ width: "400px" }}
+          >
             <Form.Item
-              label="Lesson"
-              name="lession"
+              label="Title"
+              name="title"
               rules={[
                 {
                   required: true,
@@ -107,6 +96,21 @@ const CreateContestPage = () => {
               </Select>
             </Form.Item>
             <Form.Item
+              label="Chọn kho đề"
+              name="lesson"
+              rules={[
+                {
+                  required: true,
+                },
+              ]}
+            >
+              <Select onChange={handleSelectChange} allowClear>
+                <Option value="ai">Trí tuệ Nhân tạo</Option>
+                <Option value="final">Kiểm thử Xâm nhập</Option>
+                <Option value="other">Blockchain</Option>
+              </Select>
+            </Form.Item>
+            <Form.Item
               label="Time"
               name="time"
               rules={[
@@ -116,6 +120,7 @@ const CreateContestPage = () => {
               ]}
             >
               <RangePicker
+                style={{ width: "400px" }}
                 showTime={{
                   format: "HH:mm",
                 }}

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
-import { Input, Radio, Space, Button, Checkbox } from "antd";
+import { Input, Radio, Space, Button, Checkbox, Modal } from "antd";
 import useWindowFocus from "../../../hooks/useWindowFocus";
 import Countdown from "react-countdown";
 const { TextArea } = Input;
@@ -146,19 +146,38 @@ const CustomCountdown = React.memo(() => {
 CustomCountdown.displayName = "Countdown-Elm";
 
 const DoingContestPage = () => {
-  useWindowFocus();
+  const [warning, setWarning] = useState(0);
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  useWindowFocus({ warning, setWarning });
+
+  const handleFinish = () => {
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+      setOpen(false);
+      window.close();
+    }, 3000);
+  };
 
   const handleNext = () => {
     if (questionIndex === questionList.length - 1) return;
     setQuestionIndex(questionIndex + 1);
   };
 
+  useEffect(() => {
+    // trigger if the user has over 3 warnings, close tab & finish
+    if (warning <= 3) return;
+    setOpen(true);
+  }, [warning]);
+
   return (
     <Container>
       <Counter>
         <CustomCountdown />
         <br />
+        <h4>Bị cảnh báo: {warning}</h4>
         <span>
           ({questionIndex + 1}/{questionList.length})
         </span>
@@ -167,6 +186,27 @@ const DoingContestPage = () => {
       <ButtonNext onClick={handleNext} size="large">
         {questionIndex === questionList.length - 1 ? "Finish" : "Next"}
       </ButtonNext>
+
+      <Modal
+        centered
+        open={open}
+        title="Bạn đã hoàn thành bài thi - Warn: 4"
+        onOk={handleFinish}
+        onCancel={handleFinish}
+        footer={[
+          <Button
+            key="submit"
+            type="primary"
+            loading={loading}
+            onClick={handleFinish}
+          >
+            OK
+          </Button>,
+        ]}
+      >
+        <p>Thời gian làm bài: 43 phút 25 giây</p>
+        <p>Số điểm: 38/40</p>
+      </Modal>
     </Container>
   );
 };

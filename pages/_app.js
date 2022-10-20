@@ -22,12 +22,10 @@ const sidebarItems = [
       {
         key: 11,
         label: "Khoa hoc du lieu",
-        link: `/contest/11`,
       },
       {
         key: 12,
         label: "Tri tue nhan tao",
-        link: `/contest/11`,
       },
     ],
   },
@@ -39,17 +37,10 @@ const sidebarItems = [
       {
         key: 21,
         label: "Create",
-        link: `/contest/create`,
       },
       {
         key: 22,
-        label: "Add questions",
-        link: `/contest/add-questions`,
-      },
-      {
-        key: 23,
         label: "Assign participants",
-        link: `/contest/assign-participants`,
       },
     ],
   },
@@ -57,9 +48,16 @@ const sidebarItems = [
     key: 3,
     label: "Result",
     icon: React.createElement(UserOutlined),
-    link: `/result`,
   },
 ];
+
+const Links = [
+  { key: 11, link: `/contest/11`},
+  { key: 12, link: `/contest/12`},
+  { key: 21, link: `/contest/create`},
+  { key: 22, link: `/contest/assign-participants`},
+  { key: 3, link: `/result`},
+]
 
 const StyledSpan = styled.span`
   text-align: right;
@@ -70,13 +68,9 @@ function MyApp({ Component, pageProps }) {
   const router = useRouter();
 
   const handleClickSidebar = (e) => {
-    console.log(
-      "item tim dc ne",
-      sidebarItems.find((elm) => elm.key === e.key)
-    );
-    // const link = sidebarItems.find(elm => elm.key === e.key).link;
-    // if (!link) return;
-    // router.push(link);
+    const foundItem = Links.find(link => link.key == e.key);
+    if (!foundItem) return;
+    router.push(foundItem.link);
   };
 
   return (
