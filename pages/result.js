@@ -1,60 +1,68 @@
 import { Breadcrumb, Layout, Select, Table } from "antd";
 import { Content } from "antd/lib/layout/layout";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import contestApi from "../api/contestApi";
+import resultApi from "../api/resultApi";
 const { Option } = Select;
 
 const columns = [
   {
-    title: 'Name',
-    dataIndex: 'name',
+    title: "Name",
+    dataIndex: "name",
   },
   {
-    title: 'Time (Minutes)',
-    dataIndex: 'time',
-    defaultSortOrder: 'ascend',
+    title: "Time (Minutes)",
+    dataIndex: "time",
     sorter: (a, b) => a.time - b.time,
   },
   {
-    title: 'Points',
-    dataIndex: 'points',
-    defaultSortOrder: 'descend',
+    title: "Points",
+    dataIndex: "points",
+    defaultSortOrder: "descend",
     sorter: (a, b) => a.points - b.points,
   },
 ];
-const data = [
-  {
-    key: '1',
-    name: 'Nguyen Van A | 19TCLC_DT1',
-    time: 34,
-    points: 95
-  },
-  {
-    key: '2',
-    name: 'Tran Van B | 19TCLC_DT1',
-    time: 56,
-    points: 96
-  },
-  {
-    key: '3',
-    name: 'Le Thi C | 19TCLC_DT1',
-    time: 54,
-    points: 91
-  },
-  {
-    key: '4',
-    name: 'Tu Ma Y | 19TCLC_DT1',
-    time: 50,
-    points: 99
-  },
-];
 const onChange = (pagination, filters, sorter, extra) => {
-  console.log('params', pagination, filters, sorter, extra);
+  console.log("params", pagination, filters, sorter, extra);
 };
 
 const ResultPage = () => {
-  const handleSelectChange = (value) => {
-    console.log("value select", value);
-  };
+  const [contests, setContests] = useState([]);
+  const [selectedContestId, setSelectedContestId] = useState(null);
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const contestRes = await contestApi.getAllContests();
+        setContests(contestRes.data.data);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await resultApi.getResultByContestId(
+          selectedContestId
+        );
+        const tmp = response.data.data.map((item) => ({
+          key: item._id,
+          name: item.info.fullname
+            ? `${item.info.username} | ${item.info.fullname}`
+            : item.info.username,
+          time: item.time,
+          points: item.point,
+        }));
+        setData(tmp);
+      } catch (err) {
+        console.error(err);
+        setData([]);
+      }
+    })();
+  }, [selectedContestId]);
 
   return (
     <Layout
@@ -78,9 +86,16 @@ const ResultPage = () => {
           minHeight: 280,
         }}
       >
-        <Select onChange={handleSelectChange} allowClear style={{ width: '200px', marginBottom: '15px' }}>
-        <Option value="semifinal">Kiểm thử xâm nhập</Option>
-                <Option value="final">Chuyên đề ATTT</Option>
+        <Select
+          onChange={(value) => setSelectedContestId(value)}
+          allowClear
+          style={{ width: "200px", marginBottom: "15px" }}
+        >
+          {contests.map((contest) => (
+            <Option value={contest._id} key={contest._id}>
+              {contest.title}
+            </Option>
+          ))}
         </Select>
 
         <Table columns={columns} dataSource={data} onChange={onChange} />

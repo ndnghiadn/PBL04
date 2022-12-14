@@ -3,61 +3,19 @@ import {
   LaptopOutlined,
   NotificationOutlined,
   UserOutlined,
+  BarChartOutlined
 } from "@ant-design/icons";
 import { Breadcrumb, Layout, Menu } from "antd";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Logo from "../components/Logo";
 import styled from "styled-components";
 const { Header, Footer, Sider, Content } = Layout;
 import Link from "next/link";
 import Head from "next/head";
 import { useRouter } from "next/router";
-
-const sidebarItems = [
-  {
-    key: 1,
-    label: "Make contest",
-    icon: React.createElement(LaptopOutlined),
-    children: [
-      {
-        key: 11,
-        label: "Khoa hoc du lieu",
-      },
-      {
-        key: 12,
-        label: "Tri tue nhan tao",
-      },
-    ],
-  },
-  {
-    key: 2,
-    label: "Contest",
-    icon: React.createElement(LaptopOutlined),
-    children: [
-      {
-        key: 21,
-        label: "Create",
-      },
-      {
-        key: 22,
-        label: "Assign participants",
-      },
-    ],
-  },
-  {
-    key: 3,
-    label: "Result",
-    icon: React.createElement(UserOutlined),
-  },
-];
-
-const Links = [
-  { key: 11, link: `/contest/11`},
-  { key: 12, link: `/contest/12`},
-  { key: 21, link: `/contest/create`},
-  { key: 22, link: `/contest/assign-participants`},
-  { key: 3, link: `/result`},
-]
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import contestApi from "../api/contestApi";
 
 const StyledSpan = styled.span`
   text-align: right;
@@ -66,9 +24,102 @@ const StyledSpan = styled.span`
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
+  const [sidebarItems, setSidebarItems] = useState([
+    {
+      key: 1,
+      label: "Make contest",
+      icon: React.createElement(NotificationOutlined),
+      children: [],
+    },
+    {
+      key: 4,
+      label: "Bunker",
+      icon: React.createElement(LaptopOutlined),
+      children: [
+        {
+          key: 41,
+          label: "Create",
+        },
+        {
+          key: 42,
+          label: "Add questions",
+        },
+      ],
+    },
+    {
+      key: 2,
+      label: "Contest",
+      icon: React.createElement(UserOutlined),
+      children: [
+        {
+          key: 21,
+          label: "Create",
+        },
+        {
+          key: 22,
+          label: "Assign participants",
+        },
+      ],
+    },
+    {
+      key: 3,
+      label: "Result",
+      icon: React.createElement(BarChartOutlined),
+    },
+  ]);
+  const [links, setLinks] = useState([
+    { key: 21, link: `/contest/create` },
+    { key: 22, link: `/contest/assign-participants` },
+    { key: 3, link: `/result` },
+    { key: 41, link: `/bunker/create` },
+    { key: 42, link: `/bunker/add-questions` },
+  ]);
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    setUserData(JSON.parse(localStorage.getItem("userData")));
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await contestApi.getAllContests();
+
+        let tmpSidebarItems = [...sidebarItems];
+        const tmpLinks = [...links];
+
+        response.data.data.forEach((contest) => {
+          const contestTmp = {
+            key: contest._id,
+            label: contest.title,
+          };
+          const linkTmp = {
+            key: contest._id,
+            link: `/contest/${contest._id}`,
+          };
+          tmpLinks.push(linkTmp);
+          tmpSidebarItems = tmpSidebarItems.map((item) => {
+            if (item.key == 1) {
+              return {
+                ...item,
+                children: [...item.children, contestTmp],
+              };
+            }
+
+            return item;
+          });
+
+          setSidebarItems(tmpSidebarItems);
+          setLinks(tmpLinks);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, []);
 
   const handleClickSidebar = (e) => {
-    const foundItem = Links.find(link => link.key == e.key);
+    const foundItem = links.find((link) => link.key == e.key);
     if (!foundItem) return;
     router.push(foundItem.link);
   };
@@ -95,10 +146,17 @@ function MyApp({ Component, pageProps }) {
             >
               <Logo width="200" height="70" />
               <StyledSpan>
-                You are logging as ndnghiadn.{" "}
-                <Link href="/login" style={{ textDecoration: "underline" }}>
+                You are logging as {userData?.username}.{" "}
+                <span
+                  onClick={() => {
+                    localStorage.removeItem("access_token");
+                    localStorage.removeItem("userData");
+                    router.push("/login");
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   Log out
-                </Link>
+                </span>
               </StyledSpan>
             </div>
           </Header>
@@ -118,6 +176,17 @@ function MyApp({ Component, pageProps }) {
           </Layout>
         </Layout>
       )}
+
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={true}
+        newestOnTop={true}
+        draggable={false}
+        pauseOnVisibilityChange
+        closeOnClick
+        pauseOnHover
+      />
     </>
   );
 }

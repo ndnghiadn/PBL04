@@ -1,20 +1,49 @@
 import { Breadcrumb, Button, Layout, Form, Select } from "antd";
 import { Content } from "antd/lib/layout/layout";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import contestApi from "../../api/contestApi";
+import userApi from "../../api/userApi";
+import { toast } from "react-toastify";
 const { Option } = Select;
 
 const AssignParticipantsPage = () => {
   const [form] = Form.useForm();
+  const [contests, setContests] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [data, setData] = useState({
+    contestId: "",
+    participants: [],
+  });
+  const [userData, setUserData] = useState(null);
 
-  const handleChange = (value) => {
-    console.log(`selected ${value}`);
-  };
-  const handleSelectChange = (value) => {
-    console.log("value select", value);
-  };
+  useEffect(() => {
+    setUserData(JSON.parse(localStorage.getItem("userData")));
+  }, []);
 
-  const handleSubmit = (values) => {
-    console.log(values);
+  useEffect(() => {
+    (async () => {
+      try {
+        const contestRes = await contestApi.getAllContests();
+        const userRes = await userApi.getAllUsers();
+        setContests(contestRes.data.data);
+        setUsers(userRes.data.data);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, []);
+
+  const handleAssignParticipants = async () => {
+    try {
+      await contestApi.assignParticipants(data.contestId, {
+        participants: data.participants,
+      });
+
+      toast.success("Assign participants successfully !");
+    } catch (err) {
+      toast.error("Assign participants FAILED !!!");
+      console.error(err);
+    }
   };
 
   return (
@@ -48,12 +77,7 @@ const AssignParticipantsPage = () => {
             alignItems: "center",
           }}
         >
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            style={{ width: "400px" }}
-          >
+          <Form form={form} layout="vertical" style={{ width: "400px" }}>
             <Form.Item
               label="Contest"
               name="contest"
@@ -63,9 +87,20 @@ const AssignParticipantsPage = () => {
                 },
               ]}
             >
-              <Select onChange={handleSelectChange} allowClear>
-                <Option value="semifinal">Kiểm thử xâm nhập</Option>
-                <Option value="final">Chuyên đề ATTT</Option>
+              <Select
+                onChange={(value) =>
+                  setData({
+                    ...data,
+                    contestId: value,
+                  })
+                }
+                allowClear
+              >
+                {contests.map((contest) => (
+                  <Option value={contest._id} key={contest._id}>
+                    {contest.title}
+                  </Option>
+                ))}
               </Select>
             </Form.Item>
             <Form.Item
@@ -84,16 +119,28 @@ const AssignParticipantsPage = () => {
                   width: "100%",
                 }}
                 placeholder="Please select"
-                defaultValue={["A", "B"]}
-                onChange={handleChange}
+                onChange={(value) =>
+                  setData({
+                    ...data,
+                    participants: value,
+                  })
+                }
               >
-                <Option value="A">Nguyen Van A</Option>
-                <Option value="B">Le Van B</Option>
-                <Option value="C">Tran Van C</Option>
+                {users.map((user) => (
+                  <Option value={user._id} key={user._id}>
+                    {user.username}
+                  </Option>
+                ))}
               </Select>
             </Form.Item>
             <Form.Item>
-              <Button type="primary">Assign</Button>
+              <Button
+                onClick={handleAssignParticipants}
+                type="primary"
+                disabled={userData?.role == "admin" ? false : true}
+              >
+                Assign
+              </Button>
             </Form.Item>
           </Form>
         </div>

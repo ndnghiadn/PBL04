@@ -1,55 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { Input, Radio, Space, Button, Checkbox, Modal } from "antd";
 import useWindowFocus from "../../../hooks/useWindowFocus";
-import Countdown from "react-countdown";
-const { TextArea } = Input;
-
-const questionList = [
-  {
-    id: 1,
-    label: "Vượn cổ thích ăn món gì?",
-    type: "radio",
-    content: [
-      {
-        label: "Chuối",
-        value: "banana",
-      },
-      {
-        label: "Táo",
-        value: "apple",
-      },
-      {
-        label: "Bơ",
-        value: "avocado",
-      },
-      {
-        label: "Tất cả phương án trên",
-        value: "all",
-      },
-    ],
-  },
-  {
-    id: 2,
-    label: "Bạn biết gì về loài vượn cổ?",
-    type: "textarea",
-  },
-  {
-    id: 3,
-    label: "Hoạt động nào phổ biến thời săn bắt hái lượm?",
-    type: "select",
-    content: [
-      {
-        label: "Ăn",
-        value: "banana",
-      },
-      {
-        label: "Ngủ",
-        value: "banana",
-      },
-    ],
-  },
-];
+import { useRouter } from "next/router";
+import contestApi from "../../../api/contestApi";
+import { toast } from "react-toastify";
+const CheckboxGroup = Checkbox.Group;
 
 const Container = styled.div`
   position: relative;
@@ -80,46 +36,101 @@ const Question = styled.div`
   }
 `;
 
-const QuestionElement = ({ data }) => {
-  const [value, setValue] = useState(1);
+const QuestionElement = ({ data, index, result, setResult, setResultList }) => {
+  const [value, setValue] = useState(null);
+  const [checkedList, setCheckedList] = useState([]);
+  const [content, setContent] = useState([]);
+
+  useEffect(() => {
+    if (!data) return;
+
+    setValue(null);
+    setCheckedList([]);
+    setResult(null);
+
+    setResultList((current) => [
+      ...current,
+      {
+        value: result,
+      },
+    ]);
+
+    setContent(shuffle(data.content));
+  }, [data]);
+
+  useEffect(() => {
+    if (data?.type === "radio") {
+      setResult(value);
+    } else {
+      setResult(checkedList);
+    }
+  }, [value, checkedList]);
 
   const onChange = (e) => {
-    console.log("radio checked", e.target.value);
     setValue(e.target.value);
   };
 
+  const handleChangeCheckbox = (e) => {
+    let newList = [];
+    if (e.target.checked) {
+      if (checkedList.includes(e.target.value)) {
+        newList = [...checkedList];
+      } else {
+        newList = [...checkedList, e.target.value];
+      }
+    } else {
+      newList = checkedList.filter((listItem) => listItem !== e.target.value);
+    }
+    setCheckedList(newList);
+  };
+
+  function shuffle(array) {
+    if (!array) return;
+
+    let currentIndex = array.length,
+      randomIndex;
+
+    // While there remain elements to shuffle.
+    while (currentIndex != 0) {
+      // Pick a remaining element.
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+
+      // And swap it with the current element.
+      [array[currentIndex], array[randomIndex]] = [
+        array[randomIndex],
+        array[currentIndex],
+      ];
+    }
+
+    return array;
+  }
+
   return (
-    <Question>
+    <Question key={data?._id}>
       <h3>
-        Câu {data.id}: {data.label}
+        Câu {index}: {data?.label}
       </h3>
-      {data.type === "radio" ? (
+      {data?.type === "radio" ? (
         <Radio.Group onChange={onChange} value={value}>
           <Space direction="vertical">
-            {data.content.map((item, index) => (
-              <Radio key={index} value={item.value}>
+            {content.map((item) => (
+              <Radio key={item.value} value={item.value}>
                 {item.label}
               </Radio>
             ))}
-            <Radio value={4}>
-              Đáp án khác
-              {value === 4 ? (
-                <Input
-                  style={{
-                    width: 100,
-                    marginLeft: 10,
-                  }}
-                />
-              ) : null}
-            </Radio>
           </Space>
         </Radio.Group>
-      ) : data.type === "textarea" ? (
-        <TextArea rows={4} placeholder="Write your answer here" maxLength={7} />
       ) : (
-        data.content.map((item, index) => (
+        content.map((item) => (
           <>
-            <Checkbox key={index}>{item.label}</Checkbox>
+            <Checkbox
+              onChange={handleChangeCheckbox}
+              key={item.value}
+              value={item.value}
+            >
+              {item.label}
+            </Checkbox>
             <br></br>
           </>
         ))
@@ -128,61 +139,127 @@ const QuestionElement = ({ data }) => {
   );
 };
 
-const CustomCountdown = React.memo(() => {
-  return (
-    <Countdown
-      renderer={({ days, hours, minutes, seconds, completed }) => {
-        return (
-          <h2 style={{ color: completed ? "red" : "green" }}>
-            {days}:{hours}:{minutes}:{seconds}
-          </h2>
-        );
-      }}
-      autoStart
-      date={Date.now() + 60 * 60 * 1000}
-    />
-  );
-});
-CustomCountdown.displayName = "Countdown-Elm";
-
 const DoingContestPage = () => {
+  const router = useRouter();
+  const { id } = router.query;
   const [warning, setWarning] = useState(0);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  useWindowFocus({ warning, setWarning });
+  const [questionList, setQuestionList] = useState([]);
+  const [resultList, setResultList] = useState([]);
+  const [result, setResult] = useState(null);
+  const [time, setTime] = useState(0);
+  const [isTimeStopped, setIsTimeStopped] = useState(false);
+  const [contestDuration, setContestDuration] = useState(45); // 45 minutes default for semi-final contest
 
-  const handleFinish = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setOpen(false);
-      window.close();
-    }, 3000);
-  };
+  useEffect(() => {
+    if (!router.isReady) return;
+    (async () => {
+      try {
+        const response = await contestApi.getContestById(id);
+        if (response.data.data.type == "final") {
+          setContestDuration(75);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, [router.isReady]);
 
-  const handleNext = () => {
-    if (questionIndex === questionList.length - 1) return;
-    setQuestionIndex(questionIndex + 1);
-  };
+  useEffect(() => {
+    if (isTimeStopped) return;
+    const countdown = setInterval(() => {
+      setTime((current) => current + 1);
+    }, 60 * 1000); // after 1 minute
+
+    return () => {
+      clearInterval(countdown);
+    };
+  }, [isTimeStopped]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await contestApi.startContest(id);
+        setQuestionList(response.data.data);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, [id]);
 
   useEffect(() => {
     // trigger if the user has over 3 warnings, close tab & finish
     if (warning <= 3) return;
+    setIsTimeStopped(true);
     setOpen(true);
   }, [warning]);
+
+  useEffect(() => {
+    if (contestDuration - time > 0) return;
+    setIsTimeStopped(true);
+    setOpen(true);
+  }, [time]);
+
+  useWindowFocus({ warning, setWarning });
+
+  const handleFinish = async () => {
+    const tmp = questionList.map((question, index) => ({
+      questionId: question._id,
+      value: resultList[index + 1] ? resultList[index + 1].value : "",
+    }));
+    setLoading(true);
+    try {
+      await contestApi.finishContest(id, {
+        time,
+        warn: warning,
+        data: tmp,
+      });
+      setLoading(false);
+      setOpen(false);
+      window.close();
+    } catch (err) {
+      toast.error("Xảy ra lỗi trong khi nộp bài, hãy thử lại !");
+    }
+  };
+
+  const handleNext = () => {
+    if (questionIndex === questionList.length - 1) {
+      setResultList([
+        ...resultList,
+        {
+          value: result,
+        },
+      ]);
+      setIsTimeStopped(true);
+      setOpen(true);
+    } else {
+      setQuestionIndex(questionIndex + 1);
+    }
+  };
 
   return (
     <Container>
       <Counter>
-        <CustomCountdown />
+        <h4>
+          {contestDuration - time == 0
+            ? "Hết giờ làm bài"
+            : `Còn lại ${contestDuration - time} phút`}
+        </h4>
         <br />
         <h4>Bị cảnh báo: {warning}</h4>
         <span>
           ({questionIndex + 1}/{questionList.length})
         </span>
       </Counter>
-      <QuestionElement data={questionList[questionIndex]} />
+      <QuestionElement
+        data={questionList[questionIndex]}
+        index={questionIndex + 1}
+        result={result}
+        setResult={setResult}
+        setResultList={setResultList}
+      />
       <ButtonNext onClick={handleNext} size="large">
         {questionIndex === questionList.length - 1 ? "Finish" : "Next"}
       </ButtonNext>
@@ -190,9 +267,13 @@ const DoingContestPage = () => {
       <Modal
         centered
         open={open}
-        title="Bạn đã hoàn thành bài thi - Warn: 4"
+        title={`Bạn đã hoàn thành bài thi - Warn: ${warning}`}
         onOk={handleFinish}
-        onCancel={handleFinish}
+        onCancel={() => {
+          if (warning > 3 || contestDuration - time <= 0) return;
+          setOpen(false);
+          setIsTimeStopped(false);
+        }}
         footer={[
           <Button
             key="submit"
@@ -204,8 +285,7 @@ const DoingContestPage = () => {
           </Button>,
         ]}
       >
-        <p>Thời gian làm bài: 43 phút 25 giây</p>
-        <p>Số điểm: 38/40</p>
+        <p>Thời gian làm bài: {time} phút</p>
       </Modal>
     </Container>
   );

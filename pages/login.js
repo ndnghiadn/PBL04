@@ -1,8 +1,11 @@
 import Head from "next/head";
 import React from "react";
-import { Button, Checkbox, Form, Input } from "antd";
+import { Button, Form, Input } from "antd";
 import styled from "styled-components";
 import Logo from "../components/Logo";
+import authApi from "../api/authApi";
+import { useRouter } from "next/router";
+import { toast } from "react-toastify";
 
 const Container = styled.div`
   width: 100%;
@@ -29,6 +32,26 @@ const StyledH2 = styled.h2`
 `;
 
 const login = () => {
+  const [form] = Form.useForm();
+  const router = useRouter();
+
+  const handleLogin = async () => {
+    const username = form.getFieldValue("username");
+    const password = form.getFieldValue("password");
+    try {
+      const response = await authApi.login({ username, password });
+      
+      localStorage.setItem("access_token", response.data.token);
+      localStorage.setItem("userData", JSON.stringify(response.data.data));
+
+      toast.success("Login successfully !")
+      router.push("/");
+    } catch (err) {
+      toast.error("Login FAILED !!!")
+      console.error(err);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -38,6 +61,7 @@ const login = () => {
       </Head>
       <Container>
         <StyledForm
+          form={form}
           name="basic"
           labelCol={{
             span: 6,
@@ -84,7 +108,7 @@ const login = () => {
               span: 16,
             }}
           ></Form.Item>
-          <StyledButton type="primary" htmlType="submit">
+          <StyledButton type="primary" onClick={handleLogin}>
             Login
           </StyledButton>
         </StyledForm>

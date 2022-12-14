@@ -8,28 +8,58 @@ import {
   DatePicker,
 } from "antd";
 import { Content } from "antd/lib/layout/layout";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import bunkerApi from "../../api/bunkerApi";
+import contestApi from "../../api/contestApi";
+import { toast } from "react-toastify";
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const CreateContestPage = () => {
   const [form] = Form.useForm();
+  const [bunkers, setBunkers] = useState([]);
+  const [data, setData] = useState({
+    title: "",
+    type: "semi-final",
+    bunkerId: "",
+    startTime: "",
+    endTime: "",
+  });
+  const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    setUserData(JSON.parse(localStorage.getItem("userData")));
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await bunkerApi.getAllBunkers();
+        setBunkers(response.data.data);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+  }, []);
 
   const onChange = (value, dateString) => {
-    console.log("Selected Time: ", value);
-    console.log("Formatted Selected Time: ", dateString);
+    setData({
+      ...data,
+      startTime: dateString[0],
+      endTime: dateString[1],
+    });
   };
 
-  const onOk = (value) => {
-    console.log("onOk: ", value);
-  };
+  const handleCreateContest = async () => {
+    try {
+      await contestApi.createContest(data);
 
-  const handleSelectChange = (value) => {
-    console.log("value select", value);
-  };
-
-  const handleSubmit = (values) => {
-    console.log(values);
+      toast.success("Create contest successfully !");
+      form.setFieldsValue("");
+    } catch (err) {
+      toast.error("Create contest FAILED !!!");
+      console.error(err);
+    }
   };
 
   return (
@@ -63,12 +93,7 @@ const CreateContestPage = () => {
             alignItems: "center",
           }}
         >
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            style={{ width: "400px" }}
-          >
+          <Form form={form} layout="vertical" style={{ width: "400px" }}>
             <Form.Item
               label="Title"
               name="title"
@@ -78,7 +103,14 @@ const CreateContestPage = () => {
                 },
               ]}
             >
-              <Input />
+              <Input
+                onChange={(e) =>
+                  setData({
+                    ...data,
+                    title: e.target.value,
+                  })
+                }
+              />
             </Form.Item>
             <Form.Item
               label="Type"
@@ -89,25 +121,42 @@ const CreateContestPage = () => {
                 },
               ]}
             >
-              <Select onChange={handleSelectChange} allowClear>
-                <Option value="semifinal">Semi-Final</Option>
+              <Select
+                onChange={(value) =>
+                  setData({
+                    ...data,
+                    type: value,
+                  })
+                }
+                allowClear
+              >
+                <Option value="semi-final">Semi-Final</Option>
                 <Option value="final">Final</Option>
-                <Option value="other">Other</Option>
               </Select>
             </Form.Item>
             <Form.Item
-              label="Chọn kho đề"
-              name="lesson"
+              label="Bunker"
+              name="bunker"
               rules={[
                 {
                   required: true,
                 },
               ]}
             >
-              <Select onChange={handleSelectChange} allowClear>
-                <Option value="ai">Trí tuệ Nhân tạo</Option>
-                <Option value="final">Kiểm thử Xâm nhập</Option>
-                <Option value="other">Blockchain</Option>
+              <Select
+                onChange={(value) =>
+                  setData({
+                    ...data,
+                    bunkerId: value,
+                  })
+                }
+                allowClear
+              >
+                {bunkers.map((bunker) => (
+                  <Option value={bunker._id} key={bunker._id}>
+                    {bunker.title}
+                  </Option>
+                ))}
               </Select>
             </Form.Item>
             <Form.Item
@@ -126,11 +175,16 @@ const CreateContestPage = () => {
                 }}
                 format="YYYY-MM-DD HH:mm"
                 onChange={onChange}
-                onOk={onOk}
               />
             </Form.Item>
             <Form.Item>
-              <Button type="primary">Create</Button>
+              <Button
+                onClick={handleCreateContest}
+                type="primary"
+                disabled={userData?.role == "admin" ? false : true}
+              >
+                Create
+              </Button>
             </Form.Item>
           </Form>
         </div>
